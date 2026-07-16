@@ -13,6 +13,7 @@ export const activitiesTable = pgTable("activities", {
   predictedLabel: text("predicted_label"),
   pointsAwarded: integer("points_awarded").notNull().default(0),
   adminNotes: text("admin_notes"),
+  photoTakenAt: timestamp("photo_taken_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

@@ -63,12 +63,19 @@ async function checkAndAwardBadges(userId: number, points: number, streak: numbe
   const earnedIds = new Set(earnedBadgeRows.map(r => r.badgeId));
 
   const [totalResult] = await db.select({ count: count() }).from(activitiesTable).where(eq(activitiesTable.userId, userId));
-  const [validResult] = await db.select({ count: count() }).from(activitiesTable).where(and(eq(activitiesTable.userId, userId), eq(activitiesTable.status, "valid")));
-  const [catResult] = await db.select({ count: count() }).from(activitiesTable).where(and(eq(activitiesTable.userId, userId), eq(activitiesTable.category, category), eq(activitiesTable.status, "valid")));
-
+  const validActivitiesRows = await db.select({ category: activitiesTable.category }).from(activitiesTable).where(and(eq(activitiesTable.userId, userId), eq(activitiesTable.status, "valid")));
+  
   const totalActivities = Number(totalResult?.count ?? 0);
-  const validActivities = Number(validResult?.count ?? 0);
-  const categoryCount = Number(catResult?.count ?? 0);
+  const validActivities = validActivitiesRows.length;
+  const validCategories = validActivitiesRows.map(r => r.category);
+
+  const countForRequirements = (cats: string[]) => {
+    return validCategories.filter(c => cats.includes(c)).length;
+  };
+
+  const treePlantingCount = countForRequirements(["tree_planting", "sdg15_life_on_land"]);
+  const wasteCleaningCount = countForRequirements(["waste_cleaning", "sdg11_sustainable_cities", "sdg14_life_below_water"]);
+  const recyclingCount = countForRequirements(["recycling", "composting", "sdg12_responsible_consumption"]);
 
   for (const badge of allBadges) {
     if (earnedIds.has(badge.id)) continue;
@@ -77,9 +84,9 @@ async function checkAndAwardBadges(userId: number, points: number, streak: numbe
     switch (badge.requirement) {
       case "total_activities": earned = totalActivities >= badge.threshold; break;
       case "valid_activities": earned = validActivities >= badge.threshold; break;
-      case "tree_planting": earned = category === "tree_planting" && categoryCount >= badge.threshold; break;
-      case "waste_cleaning": earned = category === "waste_cleaning" && categoryCount >= badge.threshold; break;
-      case "recycling": earned = category === "recycling" && categoryCount >= badge.threshold; break;
+      case "tree_planting": earned = treePlantingCount >= badge.threshold; break;
+      case "waste_cleaning": earned = wasteCleaningCount >= badge.threshold; break;
+      case "recycling": earned = recyclingCount >= badge.threshold; break;
       case "streak": earned = streak >= badge.threshold; break;
       case "points": earned = points >= badge.threshold; break;
     }

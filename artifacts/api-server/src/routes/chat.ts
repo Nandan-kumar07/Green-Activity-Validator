@@ -48,9 +48,17 @@ router.post("/chat", requireAuth, async (req, res): Promise<void> => {
 
     const reply = response.choices[0]?.message?.content ?? "I'm sorry, I couldn't process that. Please try again.";
     res.json({ reply });
-  } catch (err) {
-    logger.error({ err }, "Chat completion failed");
-    res.status(500).json({ error: "Chat service temporarily unavailable" });
+  } catch (err: any) {
+    logger.error({ err, message: err.message }, "Chat completion failed");
+    
+    // Provide more specific error message based on error type
+    if (err.message?.includes("API key")) {
+      res.status(500).json({ error: "Chat service configuration error - please contact administrator" });
+    } else if (err.message?.includes("rate limit")) {
+      res.status(429).json({ error: "Chat service busy - please try again later" });
+    } else {
+      res.status(500).json({ error: "Chat service temporarily unavailable" });
+    }
   }
 });
 

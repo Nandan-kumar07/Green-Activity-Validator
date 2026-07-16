@@ -8,14 +8,7 @@ import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-
-const CATEGORY_LABELS: Record<string, string> = {
-  tree_planting: "Tree Planting",
-  waste_cleaning: "Waste Cleaning",
-  recycling: "Recycling",
-  composting: "Composting",
-  energy_saving: "Energy Saving"
-};
+import { CATEGORY_LABELS } from "@/lib/constants";
 
 export default function Dashboard() {
   const { user } = useAuth();

@@ -22,17 +22,14 @@ import { UploadCloud, Image as ImageIcon, CheckCircle, Loader2, Target, Leaf } f
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { getGetActivityStatsQueryKey, getListActivitiesQueryKey, getGetUserProfileQueryKey } from "@workspace/api-client-react";
+import { CATEGORY_LABELS } from "@/lib/constants";
 
-const CATEGORY_LABELS = {
-  tree_planting: "Tree Planting",
-  waste_cleaning: "Waste Cleaning",
-  recycling: "Recycling",
-  composting: "Composting",
-  energy_saving: "Energy Saving"
-};
+const categories = [
+  "tree_planting", "waste_cleaning", "recycling", "composting", "energy_saving",
+] as const;
 
 const formSchema = z.object({
-  category: z.enum(["tree_planting", "waste_cleaning", "recycling", "composting", "energy_saving"]),
+  category: z.enum(categories),
   description: z.string().optional(),
   image: z.instanceof(File, { message: "Please upload an image" })
 });
@@ -50,7 +47,7 @@ export default function UploadActivity() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      category: "waste_cleaning",
+      category: "tree_planting",
       description: "",
     },
   });
@@ -218,11 +215,11 @@ export default function UploadActivity() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+                          {categories.map((value) => (
                             <SelectItem key={value} value={value}>
                               <div className="flex items-center gap-2">
                                 {value === 'tree_planting' && <Leaf className="w-4 h-4 text-green-600" />}
-                                {label}
+                                {CATEGORY_LABELS[value]}
                               </div>
                             </SelectItem>
                           ))}

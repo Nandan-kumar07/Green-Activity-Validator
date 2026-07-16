@@ -4,6 +4,7 @@ import { eq, and, desc } from "drizzle-orm";
 import { requireAuth } from "../lib/auth";
 import { awardPointsAndCheckBadges } from "../lib/gamification";
 import { parseIdParam } from "../lib/params";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 const ASSESSMENT_POINTS_PER_CORRECT = 15;
@@ -19,23 +20,27 @@ router.post("/assessments", requireAuth, async (req, res): Promise<void> => {
     res.status(400).json({ error: "Title and questions required" }); return;
   }
 
+  // Debug logging
+  logger.info({ userId: session.userId, classId, title }, "Creating assessment");
+
   const [assessment] = await db.insert(assessmentsTable).values({
     title, description: description ?? null, type: type ?? "online",
     questions: JSON.stringify(questions),
     createdBy: session.userId!,
-    classId: classId ?? null,
+    classId: classId, // Allow null for admin, but faculty should provide classId
     dueDate: dueDate ? new Date(dueDate) : null,
     timeLimit: timeLimit ?? null,
     isActive: 1,
   }).returning();
 
+  logger.info({ assessmentId: assessment.id, classId: assessment.classId }, "Assessment created successfully");
   res.status(201).json({ ...assessment, questions });
 });
 
 router.get("/assessments", requireAuth, async (req, res): Promise<void> => {
   const session = req.session as { userId?: number; userRole?: string };
 
-  let assessments;
+  let assessments: typeof assessmentsTable.$inferSelect[];
   if (session.userRole === "admin") {
     assessments = await db.select().from(assessmentsTable).orderBy(desc(assessmentsTable.createdAt));
   } else if (session.userRole === "faculty") {
@@ -43,15 +48,12 @@ router.get("/assessments", requireAuth, async (req, res): Promise<void> => {
       .where(eq(assessmentsTable.createdBy, session.userId!))
       .orderBy(desc(assessmentsTable.createdAt));
   } else {
-    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, session.userId!));
+    // Students can see all active assessments
     assessments = await db.select().from(assessmentsTable)
       .where(eq(assessmentsTable.isActive, 1))
       .orderBy(desc(assessmentsTable.createdAt));
-    if (user?.classId) {
-      assessments = assessments.filter(a => !a.classId || a.classId === user.classId);
-    } else {
-      assessments = assessments.filter(a => !a.classId);
-    }
+    
+    logger.info({ userId: session.userId, assessmentCount: assessments.length }, "Student fetching all active assessments");
   }
 
   const submittedIds = new Set<number>();
@@ -77,7 +79,14 @@ router.get("/assessments/:id", requireAuth, async (req, res): Promise<void> => {
   const [assessment] = await db.select().from(assessmentsTable).where(eq(assessmentsTable.id, id));
   if (!assessment) { res.status(404).json({ error: "Assessment not found" }); return; }
 
-  const session = req.session as { userId?: number };
+  const session = req.session as { userId?: number; userRole?: string };
+  
+  // Students can access any active assessment
+  if (session.userRole === "student" && assessment.isActive !== 1) {
+    res.status(403).json({ error: "This assessment is not active" });
+    return;
+  }
+
   const [submission] = await db.select().from(assessmentSubmissionsTable)
     .where(and(eq(assessmentSubmissionsTable.assessmentId, id), eq(assessmentSubmissionsTable.userId, session.userId!)));
 
@@ -88,12 +97,18 @@ router.post("/assessments/:id/submit", requireAuth, async (req, res): Promise<vo
   const session = req.session as { userId?: number; userRole?: string };
   const id = parseIdParam(req.params.id);
 
+  const [assessment] = await db.select().from(assessmentsTable).where(eq(assessmentsTable.id, id));
+  if (!assessment) { res.status(404).json({ error: "Assessment not found" }); return; }
+
+  // Students can submit to any active assessment
+  if (session.userRole === "student" && assessment.isActive !== 1) {
+    res.status(403).json({ error: "This assessment is not active" });
+    return;
+  }
+
   const existing = await db.select().from(assessmentSubmissionsTable)
     .where(and(eq(assessmentSubmissionsTable.assessmentId, id), eq(assessmentSubmissionsTable.userId, session.userId!)));
   if (existing.length > 0) { res.status(409).json({ error: "Already submitted" }); return; }
-
-  const [assessment] = await db.select().from(assessmentsTable).where(eq(assessmentsTable.id, id));
-  if (!assessment) { res.status(404).json({ error: "Assessment not found" }); return; }
 
   const questions: { question: string; options: string[]; answer: number }[] = JSON.parse(assessment.questions);
   const { answers } = req.body;

@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import multer from "multer";
+import { createHash } from "crypto";
 import { db, activitiesTable, usersTable } from "@workspace/db";
 import { eq, and, desc, count, sql } from "drizzle-orm";
 import { SubmitActivityBody } from "@workspace/api-zod";
@@ -7,11 +8,14 @@ import { requireAuth } from "../lib/auth";
 import { classifyActivityImage } from "../lib/imageClassifier";
 import { awardPointsAndCheckBadges } from "../lib/gamification";
 import { logger } from "../lib/logger";
+import { getPhotoTakenAt } from "../lib/photoMetadata";
 
 const router: IRouter = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
-const VALID_CATEGORIES = ["tree_planting", "waste_cleaning", "recycling", "composting", "energy_saving"];
+const VALID_CATEGORIES = [
+  "tree_planting", "waste_cleaning", "recycling", "composting", "energy_saving",
+];
 const POINTS_FOR_VALID = 50;
 const CONFIDENCE_THRESHOLD = 0.6;
 
@@ -124,7 +128,56 @@ router.post("/activities", requireAuth, upload.single("image"), async (req, res)
   // Store image as data URL (for simplicity; in production use object storage)
   const imageUrl = `data:${mimeType};base64,${imageBase64}`;
 
-  const classification = await classifyActivityImage(imageBase64, mimeType, category);
+  const photoTakenAt = getPhotoTakenAt(req.file.buffer);
+  const finalPhotoTime = photoTakenAt || new Date();
+  
+  if (!photoTakenAt) {
+    // Fallback to current time if EXIF data is missing (for development/testing)
+    logger.warn({ userId }, "Photo missing EXIF metadata, using current time as fallback");
+  }
+
+  // Multi-layered duplicate detection
+  // 1. Hash-based detection (most reliable - detects exact duplicates) - DISABLED FOR TESTING
+  const imageHash = createHash('sha256').update(req.file.buffer).digest('hex');
+  // const [existingByHash] = await db.select({ id: activitiesTable.id }).from(activitiesTable)
+  //   .where(eq(activitiesTable.imageUrl, `data:${mimeType};base64,${imageBase64}`))
+  //   .limit(1);
+  
+  // if (existingByHash) {
+  //   logger.warn({ userId, imageHash }, "Duplicate photo detected by hash");
+  //   res.status(409).json({ error: "This photo has already been uploaded" });
+  //   return;
+  // }
+
+  // 2. EXIF timestamp detection (check across all users, not just current user) - DISABLED FOR TESTING
+  // if (photoTakenAt) {
+  //   const [existingPhoto] = await db.select({ id: activitiesTable.id }).from(activitiesTable)
+  //     .where(eq(activitiesTable.photoTakenAt, photoTakenAt))
+  //     .limit(1);
+  //   if (existingPhoto) {
+  //     logger.warn({ userId, photoTakenAt }, "Duplicate photo detected by EXIF timestamp");
+  //     res.status(409).json({ error: "A photo taken at this exact date and time has already been uploaded" });
+  //     return;
+  //   }
+  // }
+
+  // 3. Time-based detection (prevent rapid re-uploads within 1 minute)
+  const oneMinuteAgo = new Date(Date.now() - 60 * 1000);
+  const [recentUpload] = await db.select({ id: activitiesTable.id, createdAt: activitiesTable.createdAt }).from(activitiesTable)
+    .where(and(
+      eq(activitiesTable.userId, userId),
+      eq(activitiesTable.category, category)
+    ))
+    .orderBy(desc(activitiesTable.createdAt))
+    .limit(1);
+  
+  if (recentUpload && new Date(recentUpload.createdAt) > oneMinuteAgo) {
+    logger.warn({ userId, recentUploadId: recentUpload.id }, "Rapid re-upload detected");
+    res.status(429).json({ error: "Please wait at least 1 minute before uploading another photo" });
+    return;
+  }
+
+  const classification = await classifyActivityImage(imageBase64, mimeType, category, description, finalPhotoTime);
 
   const isValid = classification.isValid && classification.confidence >= CONFIDENCE_THRESHOLD;
   const status = isValid ? "valid" : "invalid";
@@ -139,6 +192,7 @@ router.post("/activities", requireAuth, upload.single("image"), async (req, res)
     confidence: classification.confidence,
     predictedLabel: classification.predictedLabel,
     pointsAwarded,
+    photoTakenAt,
   }).returning();
 
   if (isValid) {

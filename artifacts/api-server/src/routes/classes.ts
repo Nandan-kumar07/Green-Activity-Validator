@@ -68,8 +68,23 @@ router.post("/classes/join", requireAuth, async (req, res): Promise<void> => {
   const [cls] = await db.select().from(classesTable).where(eq(classesTable.code, code.toUpperCase()));
   if (!cls) { res.status(404).json({ error: "Invalid class code" }); return; }
 
+  // Check if already in a class
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, session.userId!));
+  if (user?.classId) {
+    res.status(400).json({ error: "You are already in a class" });
+    return;
+  }
+
   await db.update(usersTable).set({ classId: cls.id }).where(eq(usersTable.id, session.userId!));
-  res.json({ message: "Joined class successfully", class: cls });
+  
+  // Verify the update
+  const [updatedUser] = await db.select().from(usersTable).where(eq(usersTable.id, session.userId!));
+  
+  res.json({ 
+    message: "Joined class successfully", 
+    class: cls,
+    userClassId: updatedUser?.classId 
+  });
 });
 
 router.delete("/classes/:id", requireAuth, async (req, res): Promise<void> => {

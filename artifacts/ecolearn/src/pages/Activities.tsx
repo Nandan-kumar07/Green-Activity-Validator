@@ -8,14 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { Target, Leaf, ChevronLeft, ChevronRight, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
-const CATEGORY_LABELS: Record<string, string> = {
-  tree_planting: "Tree Planting",
-  waste_cleaning: "Waste Cleaning",
-  recycling: "Recycling",
-  composting: "Composting",
-  energy_saving: "Energy Saving"
-};
+import { CATEGORY_LABELS } from "@/lib/constants";
 
 export default function Activities() {
   const [page, setPage] = useState(1);

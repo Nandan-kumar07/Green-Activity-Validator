@@ -10,5 +10,5 @@ import type { SubmitActivityBodyCategory } from "./submitActivityBodyCategory";
 export interface SubmitActivityBody {
   category: SubmitActivityBodyCategory;
   description?: string;
-  image: File;
+  image: Blob;
 }

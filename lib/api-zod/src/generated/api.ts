@@ -109,9 +109,7 @@ export const SubmitActivityBody = zod.object({
     "energy_saving",
   ]),
   description: zod.string().optional(),
-  image: zod.custom<File>((value) => value instanceof File, {
-    message: "Expected a File",
-  }),
+  image: zod.instanceof(File),
 });
 
 /**

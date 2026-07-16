@@ -35,26 +35,37 @@ export function Navbar() {
     });
   };
 
-  const dashboardHref = (user?.role === "faculty" || user?.role === "admin") ? "/faculty-dashboard" : "/dashboard";
-  const dashboardLabel = user?.role === "faculty" ? "My Classes" : user?.role === "admin" ? "Overview" : "Dashboard";
-
-  const navItems = [
-    { href: dashboardHref, label: dashboardLabel, icon: user?.role === "faculty" ? GraduationCap : LayoutDashboard },
-    { href: "/sdgs", label: "SDGs", icon: Globe },
-    { href: "/learn", label: "Learn", icon: BookOpen },
-    { href: "/sdg-games", label: "SDG Games", icon: Swords },
-    { href: "/assessments", label: "Assessments", icon: ClipboardList },
-    { href: "/leaderboard", label: "Leaderboard", icon: Trophy },
-    { href: "/profile", label: "Profile", icon: User },
-  ];
-
-  if (user?.role === "student") {
-    navItems.splice(5, 0, { href: "/upload", label: "Submit Activity", icon: Upload });
-    navItems.splice(6, 0, { href: "/join-class", label: "My Class", icon: GraduationCap });
-  }
-
-  if (user?.role === "admin") {
-    navItems.push({ href: "/admin", label: "Admin Panel", icon: ShieldCheck });
+  let navItems: Array<{ href: string; label: string; icon: any }> = [];
+  if (user?.role === "faculty") {
+    navItems = [
+      { href: "/faculty-dashboard", label: "My Classes", icon: GraduationCap },
+      { href: "/assessments", label: "Assessments", icon: ClipboardList },
+      { href: "/leaderboard", label: "Leaderboard", icon: Trophy },
+    ];
+  } else if (user?.role === "admin") {
+    navItems = [
+      { href: "/faculty-dashboard", label: "Overview", icon: LayoutDashboard },
+      { href: "/sdgs", label: "SDGs", icon: Globe },
+      { href: "/learn", label: "Learn", icon: BookOpen },
+      { href: "/sdg-games", label: "SDG Games", icon: Swords },
+      { href: "/assessments", label: "Assessments", icon: ClipboardList },
+      { href: "/leaderboard", label: "Leaderboard", icon: Trophy },
+      { href: "/profile", label: "Profile", icon: User },
+      { href: "/admin", label: "Admin Panel", icon: ShieldCheck },
+    ];
+  } else {
+    // Student
+    navItems = [
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/sdgs", label: "SDGs", icon: Globe },
+      { href: "/learn", label: "Learn", icon: BookOpen },
+      { href: "/sdg-games", label: "SDG Games", icon: Swords },
+      { href: "/assessments", label: "Assessments", icon: ClipboardList },
+      { href: "/upload", label: "Submit Activity", icon: Upload },
+      { href: "/join-class", label: "My Class", icon: GraduationCap },
+      { href: "/leaderboard", label: "Leaderboard", icon: Trophy },
+      { href: "/profile", label: "Profile", icon: User },
+    ];
   }
 
   const NavLinks = () => (
@@ -103,9 +114,11 @@ export function Navbar() {
           {user && (
             <>
               <div className="hidden md:flex items-center gap-4">
-                <span className="text-sm text-muted-foreground">
-                  {user.points} pts
-                </span>
+                {user.role !== "faculty" && (
+                  <span className="text-sm text-muted-foreground">
+                    {user.points} pts
+                  </span>
+                )}
                 <Button variant="ghost" size="sm" onClick={handleLogout} disabled={logout.isPending} className="text-muted-foreground hover:text-destructive">
                   <LogOut className="w-4 h-4 mr-2" />
                   {logout.isPending ? "Logging out..." : "Logout"}
@@ -122,7 +135,11 @@ export function Navbar() {
                   <div className="flex flex-col gap-6 mt-6">
                     <div className="px-3 pb-4 border-b">
                       <p className="font-medium">{user.name}</p>
-                      <p className="text-sm text-muted-foreground">{user.points} points • {user.streak} day streak</p>
+                      {user.role === "faculty" ? (
+                        <p className="text-xs text-muted-foreground capitalize">Faculty Account</p>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">{user.points} points • {user.streak} day streak</p>
+                      )}
                     </div>
                     <nav className="flex flex-col gap-2">
                       <NavLinks />

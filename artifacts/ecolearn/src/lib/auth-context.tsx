@@ -1,4 +1,4 @@
-import { createContext, useContext, ReactNode } from "react";
+import { createContext, useContext, ReactNode, useState } from "react";
 import { User } from "@workspace/api-client-react";
 import { useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -22,20 +22,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refetchOnReconnect: false,
     },
   });
+  const [sessionUser, setSessionUser] = useState<User | null | undefined>(undefined);
+
+  const currentUser = sessionUser === undefined ? (isError ? null : user) : sessionUser;
 
   const logoutUser = () => {
-    queryClient.setQueryData(getGetMeQueryKey(), null);
-    queryClient.removeQueries({ queryKey: getGetMeQueryKey() });
+    setSessionUser(null);
+    queryClient.clear();
   };
 
   const loginUser = (loggedInUser: User) => {
+    setSessionUser(loggedInUser);
     queryClient.setQueryData(getGetMeQueryKey(), loggedInUser);
   };
 
   return (
     <AuthContext.Provider
       value={{
-        user: isError ? null : user,
+        user: currentUser,
         isLoading,
         logoutUser,
         loginUser,

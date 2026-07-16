@@ -97,6 +97,23 @@ export const SubmitActivityBodyCategory = {
   recycling: "recycling",
   composting: "composting",
   energy_saving: "energy_saving",
+  sdg1_no_poverty: "sdg1_no_poverty",
+  sdg2_zero_hunger: "sdg2_zero_hunger",
+  sdg3_good_health: "sdg3_good_health",
+  sdg4_quality_education: "sdg4_quality_education",
+  sdg5_gender_equality: "sdg5_gender_equality",
+  sdg6_clean_water: "sdg6_clean_water",
+  sdg7_clean_energy: "sdg7_clean_energy",
+  sdg8_decent_work: "sdg8_decent_work",
+  sdg9_industry_innovation: "sdg9_industry_innovation",
+  sdg10_reduced_inequalities: "sdg10_reduced_inequalities",
+  sdg11_sustainable_cities: "sdg11_sustainable_cities",
+  sdg12_responsible_consumption: "sdg12_responsible_consumption",
+  sdg13_climate_action: "sdg13_climate_action",
+  sdg14_life_below_water: "sdg14_life_below_water",
+  sdg15_life_on_land: "sdg15_life_on_land",
+  sdg16_peace_justice: "sdg16_peace_justice",
+  sdg17_partnerships: "sdg17_partnerships",
 } as const;
 
 export interface SubmitActivityBody {
