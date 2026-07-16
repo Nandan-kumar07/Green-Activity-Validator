@@ -81,3 +81,4 @@ postgresql://postgres:postgres123@localhost:5432/green_activity
 ```
 
 Update `DATABASE_URL` in `.env` to match your local PostgreSQL username and password.
+# Green-Activity-Validator
